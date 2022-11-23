@@ -22,7 +22,7 @@ export class SignalingServer {
     private handleMessage = (event: MessageEvent) => { 
         const { type, data } = JSON.parse(event.data);
         console.log(`received ${type} event from server with data`); 
-        const { username, ...args } = data;
+        const { username } = data;
         const eventHandler = this.events[type];
         if (eventHandler) {
             eventHandler(username, data);
