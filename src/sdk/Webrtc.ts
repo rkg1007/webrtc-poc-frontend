@@ -39,7 +39,7 @@ export class WebRTC {
 
     private handleRemoteStream = async () => {
         this.pc.ontrack = (event) => {
-            console.log("receiving remote stream")
+            console.log("receiving remote stream", event.streams[0]);
             if (this.streamEvent) {
                 console.log("trying to change remote stream state in ui");
                 this.streamEvent(event.streams[0]);
