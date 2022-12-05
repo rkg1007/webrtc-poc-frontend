@@ -1,58 +1,35 @@
-export class SignalingServer {
-    private socket: WebSocket;
-    public isConnected = false;
-    private username: string;
-    private events: Record<string, Function | null>;
+import { io, Socket } from "socket.io-client";
 
-    constructor(url: string) {
-        this.socket = new WebSocket(url);
-        this.socket.onmessage = this.handleMessage;
-        this.socket.onopen = this.handleOpen;
-        this.socket.onclose = this.handleClose;
-        this.socket.onerror = this.handleError;
-        this.events = {};
+export class SignallingServer {
+    private socket: Socket;
+    private registeredEvents: Record<string, any>;
+
+    constructor() {
+        this.registeredEvents = {}
+        this.socket = io("http://localhost:5000");
+        this.socket.onAny((eventName, ...args) => {
+            if (this.registeredEvents[eventName]) {
+                const eventHandler = this.registeredEvents[eventName];
+                eventHandler(...args);
+            }
+        });
     }
 
-    private handleOpen = () => { 
-        console.log("connected to server"); 
-        this.isConnected = true;
-    }
-    private handleClose = () => { console.log("disconnected to server"); }
-    private handleError = () => { console.log("error in connection server"); }
-    private handleMessage = (event: MessageEvent) => { 
-        const { type, data } = JSON.parse(event.data);
-        console.log(`received ${type} event from server with data`); 
-        const { username } = data;
-        const eventHandler = this.events[type];
-        if (eventHandler) {
-            eventHandler(username, data);
+    public on = (event: string, fn: any) => {
+        const allowedEvents = ["member-joined", "member-left", "make-call", "accept-call", "call-signal", "online-members"];
+        if (allowedEvents.includes(event)) {
+            this.registeredEvents[event] = fn;
+        } else {
+            console.log(`event ${event} is not allowed to register`);
         }
     }
 
-    public on = (event: string, cb: Function | null) => {
-        this.events[event] = cb;
-    }
-
-    public join = (username: string) => {
-        this.username = username;
-        let time = 1;
-        if (!this.isConnected) time = 1000;
-        setTimeout(() => {
-            this.send({ type: "join" });
-        }, time);
-    }
-
-    public emit = (type: string, data: any) => {
-        this.send({ type, data });
-    }
-
-    private send = (signal: any) => {
-        if (!this.isConnected) {
-            console.error("error: you are not connected to the server")
-            return;
+    public emit = (event: string, data: any) => {
+        const allowedEvents = ["join", "make-call", "accept-call", "call-signal"];
+        if (allowedEvents.includes(event)) {
+            this.socket.emit(event, { ...data });
+        } else {
+            console.log(`event ${event} is not allowed to emit`);
         }
-        const message = { type: signal.type, data: { username: this.username }}
-        if (signal.data) message.data = { ...message.data, ...signal.data };
-        this.socket.send(JSON.stringify(message));
     }
 }
